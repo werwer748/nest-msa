@@ -1,0 +1,47 @@
+version: '3.1'
+
+services:
+  user:
+    build:
+      context: .
+      dockerfile: ./apps/user/Dockerfile
+      target: development
+    # 도커파일에 입력을 해놔서 굳이 안써줘도 되지만 보통 커맨드를 오버라이드 해주는 경우가 많음
+    # 도커파일에도 커맨드가 있고, 컴포즈에도 커맨드가 있으면 컴포즈에 있는 커맨드가 실행 됨(오버라이드한다.)
+    command: pnpm run start:dev user
+    depends_on: # 어떤 서비스가 먼저 실행되어야 하는지 명시
+      postgres_user: # postgres_user 서비스가 먼저 실행되고 헬스체크가 성공하면 user 서비스 실행
+        condition: service_healthy
+    env_file:
+      - ./apps/user/.env
+    ports:
+      # 호스트 포트:컨테이너 포트
+      - '3001:3000'
+    volumes:
+      - .:/usr/src/app
+      # 호스트 컴퓨터경로 없이 컨테이너 경로만 작성한 경우 그 경로는 동기화를 하지 않는다는 의미
+      # 컨테이너 내부의 alpine 리눅스로 받아지는 디펜던시는 호스트 컴퓨터에 저장되는 디팬던시와 다르기 때문에 동기화 하지 않는다.
+      - /usr/src/app/node_modules
+
+  postgres_user:
+    image: postgres:16.3
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - '6001:5432'
+    volumes:
+      - ./postgres/user:/var/lib/postgresql/data
+    ## 컨테이너 상태체크
+    healthcheck:
+      ## postgresql 실행되었는지 확인하는 명령어
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      ## 5초마다 체크
+      interval: 5s
+      ## 빌드 실패시 5초 대기
+      timeout: 5s
+      ## 10번 재시도
+      retries: 10
+      ## 빌드 후 5초 대기하고 헬스체크 시작
+      start_period: 5s
