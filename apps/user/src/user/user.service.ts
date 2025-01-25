@@ -22,8 +22,9 @@ export class UserService {
     if (user) {
       throw new BadRequestException('이미 가입한 이메일입니다.');
     }
-
-    const hash = bcrypt.hash(password, 10);
+    console.log(password);
+    const hash = await bcrypt.hash(password, 10);
+    console.log(hash);
 
     await this.userRepository.save({
       ...createUserDto,
